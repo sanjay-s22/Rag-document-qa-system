@@ -4,7 +4,7 @@ langchain-community
 langchain-groq
 langchain-text-splitters
 langchain-core
-qdrant-client
+qdrant-client==1.7.3
 sentence-transformers
 huggingface-hub
 pypdf

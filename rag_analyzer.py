@@ -15,25 +15,28 @@ class RAGAnalyzer:
         self.llm = ChatGroq(
             model_name=model_name,
             api_key=os.getenv("GROQ_API_KEY"),
-            temperature=0.7
+            temperature=0.5 # can adjust from 0 to 1, lower = more focused, higher = more creative 
         )
         self.vector_store = None
         self.pdf_name = None
 
-    def process_pdf(self, pdf_path: str, chunk_size: int = 1000, chunk_overlap: int = 200) -> str:
+    def process_pdf(self, pdf_path: str, chunk_size: int = 1000, chunk_overlap: int = 200) -> dict:
         try:
             loader = PyPDFLoader(pdf_path)
             documents = loader.load()
 
             if not documents:
-                return "Error: PDF is empty"
+                return {
+                    "success": False,
+                    "message": "PDF contains no extractable text."
+                }
 
             self.pdf_name = os.path.basename(pdf_path)
 
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=chunk_size,
                 chunk_overlap=chunk_overlap,
-                separators=["\n\n", "\n", " ", ""]
+                separators=["\n\n", "\n", " ", ""]    # Padding to keep sentences whole; don't want to cut a thought in half mid-chunk
             )
             chunks = text_splitter.split_documents(documents)
 
@@ -43,23 +46,37 @@ class RAGAnalyzer:
                 location=":memory:",
                 collection_name="pdf_docs"
             )
-            return f"✅ Successfully processed PDF! Created {len(chunks)} chunks"
+            return {
+                "success": True,
+                "chunks": len(chunks),
+                "message": f"Processed {len(chunks)} text chunks."
+            }
 
         except Exception as e:
-            return f"Error: {str(e)}"
+            return {
+                "success": False,
+                "message": f"Error: {str(e)}"
+            }
 
-    def answer_question(self, question: str, k: int = 4) -> str:
+    def answer_question(self, question: str, k: int = 4) -> dict:  
+        # Safety check to ensure the vector index exists before we attempt a retrieval call
         if self.vector_store is None:
-            return "Please upload a PDF first"
+            return {
+            "success": False,
+            "message": "Please upload a PDF first"
+        }
 
         try:
             retriever = self.vector_store.as_retriever(search_kwargs={"k": k})
-            relevant_docs = retriever.invoke(question)
-            context = "\n\n".join([doc.page_content for doc in relevant_docs])
+            relevant_docs = retriever.invoke(question)                           # always returns top-k closest chunks
+            context = "\n\n".join([doc.page_content for doc in relevant_docs])   # Building the prompt context by joining top-k document fragments
 
-            prompt_template = """You are a helpful assistant analyzing a document.
-Use the context to answer. If asked to rate/analyze/evaluate,
-use the information in the context to give your best assessment.
+            prompt_template = """Answer the question using the provided context.
+
+For analytical or evaluative questions (e.g., rating, feedback, suggestions),
+base your reasoning strictly on the retrieved content.
+
+Do not introduce external information.
 
 Context:
 {context}
@@ -77,12 +94,19 @@ Answer:"""
             if relevant_docs:
                 response += "Source Pages:\n"
                 for doc in relevant_docs[:2]:
-                    page_num = doc.metadata.get("page", "Unknown")
-                    response += f"  • Page {page_num}\n"
-            return response
+                    page_num = doc.metadata.get("page", 0) + 1
+                    response += f"  • Page {page_num}\n"         # Limiting reference metadata to the top 2 most relevant chunks for better readability
+            
+            return {
+                "success": True,
+                "answer": response
+            }
 
         except Exception as e:
-            return f"Error: {str(e)}"
+            return {
+                "success": False,
+                "message": f"Error: {str(e)}"
+            }
 
     def clear_vector_store(self):
         self.vector_store = None
