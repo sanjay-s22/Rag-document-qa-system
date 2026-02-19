@@ -6,6 +6,5 @@ langchain-text-splitters
 langchain-core
 qdrant-client==1.7.3
 sentence-transformers
-huggingface-hub
 pypdf
 python-dotenv

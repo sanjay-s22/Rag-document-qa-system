@@ -3,19 +3,31 @@ from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Qdrant
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from sentence_transformers import SentenceTransformer
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
+from langchain_core.embeddings import Embeddings
+from typing import List
 
 load_dotenv()
 
+class SentenceTransformerEmbeddings(Embeddings):
+    def __init__(self, model_name: str):
+        self.model = SentenceTransformer(model_name)
+    
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return self.model.encode(texts).tolist()
+    
+    def embed_query(self, text: str) -> List[float]:
+        return self.model.encode([text])[0].tolist()
+
 class RAGAnalyzer:
     def __init__(self, model_name="llama-3.1-8b-instant"):
-        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        self.embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
         self.llm = ChatGroq(
             model_name=model_name,
             api_key=os.getenv("GROQ_API_KEY"),
-            temperature=0.5 # can adjust from 0 to 1, lower = more focused, higher = more creative 
+            temperature=0.6 # can adjust from 0 to 1, lower = more focused, higher = more creative 
         )
         self.vector_store = None
         self.pdf_name = None
@@ -25,6 +37,7 @@ class RAGAnalyzer:
             loader = PyPDFLoader(pdf_path)
             documents = loader.load()
 
+        
             if not documents:
                 return {
                     "success": False,
