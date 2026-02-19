@@ -212,3 +212,4 @@ __marimo__/
 models/
 temp/
 tmp/
+.streamlit/secrets.toml

@@ -18,41 +18,26 @@ h1 a, h2 a, h3 a {visibility: hidden;}
 st.markdown('<p style="font-size: 4rem; font-weight: 800; color: #1F77B4; text-align: center; margin-bottom: 0.5rem;">Querify</p>', unsafe_allow_html=True)
 st.markdown('<p style="font-size: 1.4rem; color: #555; text-align: center; margin-bottom: 2rem;">Ask questions about the uploaded document.</p>', unsafe_allow_html=True)
 
+groq_api_key = st.secrets.get("GROQ_API_KEY")
+
+if groq_api_key:
+    os.environ["GROQ_API_KEY"] = groq_api_key
 
 with st.sidebar:
     st.header("⚙️ Settings")
-    # Sidebar header for the key section
-    st.subheader("Groq API Key")
 
-                         # Key source: Grab from config first, otherwise use the sidebar input.
-    try:
-        groq_key_from_secrets = st.secrets.get("GROQ_API_KEY", "")
-    except Exception:
-        groq_key_from_secrets = ""
-    groq_key_input = st.text_input(
-        "Enter Groq API Key",
-        value=groq_key_from_secrets,
-        type="password",
-        placeholder="gsk_..."
-    )
-
-                         # Inject into env so RAGAnalyzer can pick it up via os.getenv
-    if groq_key_input:
-        os.environ["GROQ_API_KEY"] = groq_key_input
-
-    st.markdown("[Get free key →](https://console.groq.com)", unsafe_allow_html=True)
     st.markdown("---")
 
-                                   # Groq status 
+    # Groq status 
     st.subheader("🔧 Groq Status")
     is_ready, models = check_groq()
     if is_ready:
         st.success("✅ Groq API key set!")
     else:
         st.error("❌ No valid Groq API key")
-        st.caption("Enter your Groq key (gsk_...) to begin.")
+        st.caption("Groq API key must be configured in Streamlit secrets.")
 
-                                    # Model selection 
+    # Model selection 
     st.markdown("---")
     st.subheader("Model")
     model_name = st.selectbox(
@@ -79,7 +64,7 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Groq LLM + LangChain + Qdrant (in-memory)")
 
-                                           # Main logic  
+# Main logic  
 col1, col2 = st.columns([1, 1])
 
 with col1:
@@ -95,7 +80,7 @@ with col1:
             else:
                 with st.spinner("Processing PDF..."):
                     try:
-                                        # PyPDFLoader needs a local path—writing bytes to disk temporarily
+                        # PyPDFLoader needs a local path—writing bytes to disk temporarily
                         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                             tmp.write(uploaded_file.getbuffer())
                             tmp_path = tmp.name
@@ -105,12 +90,12 @@ with col1:
                         os.unlink(tmp_path)
 
                         if result["success"]:
-                           st.session_state.analyzer = analyzer
-                           st.session_state.processed = True
-                           st.session_state.pdf_name = uploaded_file.name
-                           st.success(result["message"])
+                            st.session_state.analyzer = analyzer
+                            st.session_state.processed = True
+                            st.session_state.pdf_name = uploaded_file.name
+                            st.success(result["message"])
                         else:
-                           st.error(result["message"])
+                            st.error(result["message"])
                     except Exception as e:
                         st.error(f"Error: {str(e)}")
 
@@ -118,7 +103,7 @@ with col2:
     st.header("Ask Questions")
 
     if st.session_state.processed:
-                                                   # Chat history
+        # Chat history
         if st.session_state.chat_history:
             for i, chat in enumerate(st.session_state.chat_history):
                 st.markdown(f"**Q{i+1}:** {chat['question']}")
