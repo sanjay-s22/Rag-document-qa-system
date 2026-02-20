@@ -8,12 +8,18 @@ from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from langchain_core.embeddings import Embeddings
 from typing import List
+import streamlit as st
 
 load_dotenv()
 
+@st.cache_resource
+def load_embedding_model():
+    return SentenceTransformer("all-MiniLM-L6-v2")
+
+
 class SentenceTransformerEmbeddings(Embeddings):
-    def __init__(self, model_name: str):
-        self.model = SentenceTransformer(model_name)
+    def __init__(self):
+        self.model = load_embedding_model()
     
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         return self.model.encode(texts).tolist()
@@ -23,11 +29,11 @@ class SentenceTransformerEmbeddings(Embeddings):
 
 class RAGAnalyzer:
     def __init__(self, model_name="llama-3.1-8b-instant"):
-        self.embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+        self.embeddings = SentenceTransformerEmbeddings()
         self.llm = ChatGroq(
             model_name=model_name,
             api_key=os.getenv("GROQ_API_KEY"),
-            temperature=0.6 # can adjust from 0 to 1, lower = more focused, higher = more creative 
+            temperature=0.5 # can adjust from 0 to 1, lower = more focused, higher = more creative 
         )
         self.vector_store = None
         self.pdf_name = None
@@ -38,7 +44,7 @@ class RAGAnalyzer:
             documents = loader.load()
 
         
-            if not documents:
+            if not documents or all(not doc.page_content.strip() for doc in documents):
                 return {
                     "success": False,
                     "message": "PDF contains no extractable text."
@@ -66,9 +72,10 @@ class RAGAnalyzer:
             }
 
         except Exception as e:
+            print("ERROR:", e)
             return {
                 "success": False,
-                "message": f"Error: {str(e)}"
+                "message": "Internal error occurred during PDF processing."
             }
 
     def answer_question(self, question: str, k: int = 4) -> dict:  
@@ -82,7 +89,15 @@ class RAGAnalyzer:
         try:
             retriever = self.vector_store.as_retriever(search_kwargs={"k": k})
             relevant_docs = retriever.invoke(question)                           # always returns top-k closest chunks
-            context = "\n\n".join([doc.page_content for doc in relevant_docs])   # Building the prompt context by joining top-k document fragments
+            if not relevant_docs:
+                return {
+                    "success": False,
+                    "message": "No relevant content found in document."
+                }
+
+            context = "\n\n".join(
+                doc.page_content for doc in relevant_docs if doc.page_content.strip()
+            )                                                                       
 
             prompt_template = """Answer the question using the provided context.
 
@@ -104,21 +119,24 @@ Answer:"""
             answer = response_msg.content
 
             response = f"{answer}\n\n"
-            if relevant_docs:
-                response += "Source Pages:\n"
-                for doc in relevant_docs[:2]:
-                    page_num = doc.metadata.get("page", 0) + 1
-                    response += f"  • Page {page_num}\n"         # Limiting reference metadata to the top 2 most relevant chunks for better readability
-            
+                                          #Metadata handling
+            response += "Source Pages:\n"
+            for doc in relevant_docs[:2]:
+                page_num = 1
+                if hasattr(doc, "metadata") and isinstance(doc.metadata, dict):
+                    page_num = (doc.metadata.get("page") or 0) + 1
+                response += f"  • Page {page_num}\n"
+
             return {
                 "success": True,
                 "answer": response
             }
 
         except Exception as e:
+            print("ERROR:", e)
             return {
                 "success": False,
-                "message": f"Error: {str(e)}"
+                "message": "Internal error occurred during answer generation."
             }
 
     def clear_vector_store(self):
