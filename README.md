@@ -6,6 +6,8 @@ AI-powered PDF document analyzer using Retrieval-Augmented Generation (RAG)
 [![Python](https://img.shields.io/badge/Python-3.12-blue?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![LangChain](https://img.shields.io/badge/LangChain-121212?style=for-the-badge&logo=chainlink&logoColor=white)](https://langchain.com)
 
+Live App: https://rag-document-app-system-kc9htnpnjbzbexjdk4ws98.streamlit.app/
+
 ## Features
 
 - **Low-Latency QA: Handles documents up to 200MB with near-instant responses by offloading inference to Groq.**
