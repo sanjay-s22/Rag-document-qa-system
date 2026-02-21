@@ -15,20 +15,24 @@ header a {visibility: hidden;}
 h1 a, h2 a, h3 a {visibility: hidden;}
 </style>""", unsafe_allow_html=True)
 
-st.markdown('<p style="font-size: 4rem; font-weight: 800; color: #1F77B4; text-align: center; margin-bottom: 0.5rem;">Querify</p>', unsafe_allow_html=True)
-st.markdown('<p style="font-size: 1.4rem; color: #555; text-align: center; margin-bottom: 2rem;">Ask questions about the uploaded document.</p>', unsafe_allow_html=True)
+st.markdown(
+    '<p style="font-size: 4rem; font-weight: 800; color: #1F77B4; text-align: center; margin-bottom: 0.5rem;">Querify</p>',
+    unsafe_allow_html=True
+)
+st.markdown(
+    '<p style="font-size: 1.4rem; color: #555; text-align: center; margin-bottom: 2rem;">Ask questions about the uploaded document.</p>',
+    unsafe_allow_html=True
+)
 
 groq_api_key = st.secrets.get("GROQ_API_KEY")
-
 if groq_api_key:
     os.environ["GROQ_API_KEY"] = groq_api_key
 
 with st.sidebar:
     st.header("⚙️ Settings")
-
     st.markdown("---")
 
-    # Groq status 
+    # Groq status
     st.subheader("🔧 Groq Status")
     is_ready, models = check_groq()
     if is_ready:
@@ -37,13 +41,14 @@ with st.sidebar:
         st.error("❌ No valid Groq API key")
         st.caption("Groq API key must be configured in Streamlit secrets.")
 
-    # Model selection 
     st.markdown("---")
+
+    # Model selection
     st.subheader("Model")
     model_name = st.selectbox(
         "Choose model",
-        ["llama-3.1-8b-instant", "llama-3.1-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it"],
-        help="8b model = faster responses, 70b = better reasoning (slower)"
+        ["llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
+        help="8B = fastest, Mixtral = balanced reasoning, Gemma = efficient and lightweight"
     )
 
     st.subheader("Chunking")
@@ -52,24 +57,20 @@ with st.sidebar:
     top_k = st.slider("Results to retrieve", 1, 5, 3)
 
     st.markdown("---")
-    
-    if st.session_state.processed:
-        st.subheader("Session")
-        st.info(f"📝 {st.session_state.pdf_name}")
-        if st.button("🔄 Reset"):
-            for k in ['analyzer', 'processed', 'pdf_name', 'chat_history']:
-                st.session_state[k] = None if k != 'chat_history' else []
-            st.rerun()
-
-    st.markdown("---")
     st.caption("Groq LLM + LangChain + Qdrant (in-memory)")
 
-# Main logic  
+# Main Logic
 col1, col2 = st.columns([1, 1])
+
 
 with col1:
     st.header("📤 Upload PDF")
-    uploaded_file = st.file_uploader("Choose PDF", type="pdf")
+
+    uploaded_file = st.file_uploader(
+        "Choose PDF",
+        type="pdf",
+        key="pdf_uploader"
+    )
 
     if uploaded_file and not st.session_state.processed:
         st.info(f"📁 {uploaded_file.name} ({uploaded_file.size/1024:.2f} KB)")
@@ -80,7 +81,7 @@ with col1:
             else:
                 with st.spinner("Processing PDF..."):
                     try:
-                        # PyPDFLoader needs a local path—writing bytes to disk temporarily
+                        # PyPDFLoader needs a local path — write bytes temporarily
                         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                             tmp.write(uploaded_file.getbuffer())
                             tmp_path = tmp.name
@@ -96,13 +97,33 @@ with col1:
                             st.success(result["message"])
                         else:
                             st.error(result["message"])
+
                     except Exception as e:
                         st.error(f"Error: {str(e)}")
 
+    # 
+    if st.session_state.processed:
+        st.markdown("---")
+        st.info(f"📝 {st.session_state.pdf_name}")
+
+        if st.button("🔄 Reset Session"):
+            # Clear vector store
+            if st.session_state.analyzer:
+                st.session_state.analyzer.clear_vector_store()
+
+            # Reset everything
+            st.session_state.analyzer = None
+            st.session_state.processed = False
+            st.session_state.pdf_name = None
+            st.session_state.chat_history = []
+
+            st.rerun()
+
+ 
 with col2:
     st.header("Ask Questions")
-
     if st.session_state.processed:
+
         # Chat history
         if st.session_state.chat_history:
             for i, chat in enumerate(st.session_state.chat_history):
@@ -112,11 +133,17 @@ with col2:
                     st.caption(f"⏱️ {chat['time']:.2f}s")
                 st.markdown("---")
 
-        question = st.text_area("Your question:", placeholder="What is this document about?", height=100)
+        question = st.text_area(
+            "Your question:",
+            placeholder="What is this document about?",
+            height=100
+        )
+
         col_btn1, col_btn2 = st.columns([1, 1])
 
         with col_btn1:
             ask_button = st.button("Get Answer", type="primary")
+
         with col_btn2:
             if st.button("🗑️ Clear History"):
                 st.session_state.chat_history = []
@@ -128,27 +155,31 @@ with col2:
                     start = time.time()
                     result = st.session_state.analyzer.answer_question(question, top_k)
                     elapsed = time.time() - start
-                    
+
                     if result["success"]:
                         st.markdown("### Answer")
                         st.write(result["answer"])
                         st.caption(f"⏱️ {elapsed:.2f}s")
-                        st.session_state.chat_history.append({       # keep previous Q&A so user can scroll back
+
+                        st.session_state.chat_history.append({              # keep previous Q&A so user can scroll back
                             'question': question,
                             'answer': result["answer"],
                             'time': elapsed
-                        })                                                
+                        })
+
                         st.success("Response generated.")
                     else:
                         st.error(result["message"])
-                        
+
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
+
         elif ask_button:
             st.warning("Enter a question first")
-        else:
-            st.info("Upload and process a PDF first")
 
-# ── Footer ───────────────────────────────────────────────────────────────────
+    else:
+        st.info("Upload and process a PDF first")
+
+# Footer
 st.markdown("---")
 st.markdown("Built by Sanjay. S")
