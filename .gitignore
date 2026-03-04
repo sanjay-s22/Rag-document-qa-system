@@ -213,3 +213,4 @@ models/
 temp/
 tmp/
 .streamlit/secrets.toml
+temp.pdf
