@@ -7,7 +7,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import tempfile
 import os
-from backend.rag_service import RAGService, check_groq
+from rag_service import RAGService, check_groq
 
 # Rate Limiter Setup
 limiter = Limiter(key_func=get_remote_address)
