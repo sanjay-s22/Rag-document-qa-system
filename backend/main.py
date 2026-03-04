@@ -18,7 +18,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:8501",
-                   "https://rag-document-app-system-kc9htnpnjbzbexjdk4ws98.streamlit.app"]
+                   "https://rag-document-app-system-kc9htnpnjbzbexjdk4ws98.streamlit.app"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
