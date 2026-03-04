@@ -9,7 +9,7 @@ langchain-groq==0.1.5
 langchain-text-splitters
 qdrant-client==1.9.1
 sentence-transformers==2.7.0
-torch
+torch --index-url https://download.pytorch.org/whl/cpu
 pypdf
 python-dotenv
 slowapi==0.1.9
