@@ -1,7 +1,6 @@
 fastapi==0.110.0
 uvicorn==0.29.0
 python-multipart==0.0.9
-streamlit 
 langchain==0.2.1
 langchain-community==0.2.1
 langchain-core==0.2.1
@@ -9,6 +8,8 @@ langchain-groq==0.1.5
 langchain-text-splitters
 qdrant-client==1.9.1
 sentence-transformers==2.7.0
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.3.1
 pypdf
 python-dotenv
 slowapi==0.1.9
