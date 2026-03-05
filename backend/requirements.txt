@@ -9,7 +9,7 @@ langchain-groq==0.1.5
 langchain-text-splitters
 qdrant-client==1.9.1
 sentence-transformers==2.7.0
-torch --index-url https://download.pytorch.org/whl/cpu
+torch==2.1.2+cpu --find-links https://download.pytorch.org/whl/cpu/torch_stable.html
 pypdf
 python-dotenv
 slowapi==0.1.9
