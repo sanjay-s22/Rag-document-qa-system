@@ -39,11 +39,7 @@ Answer:"""
 @lru_cache(maxsize=1)
 def load_embedding_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
-@lru_cache(maxsize=1)
-def load_embedding_model():
-    return SentenceTransformer("all-MiniLM-L6-v2")
-
-
+    
 def is_prompt_injection(text: str) -> bool:
     # Lowercase the input so matching is case-insensitive
     t = text.lower()
