@@ -269,9 +269,6 @@ Built with:
 - [PyMuPDF](https://pymupdf.readthedocs.io) — PDF extraction
 - [HuggingFace](https://huggingface.co) — Embedding models
 
----
-
-> Requires a free Groq API key. The free tier is generous enough for personal use, demos, and prototyping.
 
 ---
 
