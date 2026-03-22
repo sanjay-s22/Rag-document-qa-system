@@ -8,6 +8,7 @@ from slowapi.errors import RateLimitExceeded
 import tempfile
 import os
 from rag_service import RAGService, check_groq
+from stt_service import transcribe_audio  # Handles audio → text transcription via faster-whisper
 
 # Rate Limiter Setup
 limiter = Limiter(key_func=get_remote_address)
@@ -29,6 +30,15 @@ MAX_SIZE        = 15 * 1024 * 1024  # 15MB
 MAX_Q_LENGTH    = 500               # Max question characters
 MAX_CHUNK_SIZE  = 2000              # Match slider max
 MIN_CHUNK_SIZE  = 500               # Match slider min
+MAX_AUDIO_SIZE  = 10 * 1024 * 1024  # 10MB audio cap — keeps transcription snappy on free tier
+
+# Allowed audio MIME types — covers browser recordings (webm) and common uploads
+ALLOWED_AUDIO_TYPES = {
+    "audio/wav", "audio/wave", "audio/x-wav",
+    "audio/mpeg", "audio/mp3",
+    "audio/webm", "audio/ogg",
+    "audio/mp4", "audio/m4a",
+}
 
 
 @app.get("/health")
@@ -114,6 +124,40 @@ async def query(
 
     return result
 
+
+@app.post("/transcribe")
+@limiter.limit("10/minute")
+async def transcribe(
+    request: Request,
+    file: UploadFile = File(...)
+):
+    # Reject unsupported audio formats upfront
+    if file.content_type not in ALLOWED_AUDIO_TYPES:
+        raise HTTPException(400, f"Unsupported audio format: {file.content_type}")
+
+    data = await file.read()
+
+    if len(data) > MAX_AUDIO_SIZE:
+        raise HTTPException(400, "Audio file too large (max 10MB).")
+
+    if len(data) == 0:
+        raise HTTPException(400, "Audio file is empty.")
+
+    # Derive file extension from MIME type for the temp file faster-whisper will read
+    ext_map = {
+        "audio/wav": "wav", "audio/wave": "wav", "audio/x-wav": "wav",
+        "audio/mpeg": "mp3", "audio/mp3": "mp3",
+        "audio/webm": "webm", "audio/ogg": "ogg",
+        "audio/mp4": "m4a", "audio/m4a": "m4a",
+    }
+    ext = ext_map.get(file.content_type, "wav")
+
+    result = transcribe_audio(data, file_extension=ext)
+
+    if not result["success"]:
+        raise HTTPException(422, result["message"])
+
+    return result
 
 @app.post("/reset")
 @limiter.limit("10/minute")

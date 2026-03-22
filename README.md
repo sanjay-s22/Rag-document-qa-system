@@ -1,6 +1,6 @@
-# Querify — RAG Document QA System
+## Querify — RAG Document QA System
 
-AI-powered PDF document analyzer using Retrieval-Augmented Generation (RAG)
+AI-powered PDF document analyzer using Retrieval-Augmented Generation (RAG) with voice input support
 
 [![Python](https://img.shields.io/badge/Python-3.12-blue?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -11,57 +11,66 @@ AI-powered PDF document analyzer using Retrieval-Augmented Generation (RAG)
 **Live App:** https://rag-document-app-system-kc9htnpnjbzbexjdk4ws98.streamlit.app/  
 **API (Backend):** https://rag-document-qa-system-0raw.onrender.com
 
-> **Note:** Both the frontend and backend are hosted on free tiers. After a period of inactivity, they spin down automatically. The first request after waking up may take 1–3 minutes while the backend spins up. Subsequent requests will be fast.
+> **Note:** Both services are on free tiers and spin down after inactivity. The first request may take 1–3 minutes while the backend wakes up. Subsequent requests are fast.
 
 ---
 
-## What's New in v2
+## What's New in v3
 
-The project has been refactored from a single Streamlit app into a proper **FastAPI backend + Streamlit frontend** architecture:
+- **Voice input (STT)** — Ask questions by speaking directly in the browser. Powered by Groq's `whisper-large-v3-turbo` — transcription runs on Groq's servers, zero RAM cost on the backend
+- **Query rewriting** — Before retrieval, the LLM rephrases the user's question to be more search-friendly, improving chunk matching on vague or short queries
+- **Structured source citations** — Every answer now returns a collapsible citations panel showing the exact page number and chunk snippet the answer was pulled from
+- **RAG debug panel** — Toggle in the sidebar to inspect the rewritten query, number of chunks used, and chunk previews for every response
+- **PyMuPDF** — Switched from PyPDF to PyMuPDF for significantly better text extraction from tables, multi-column layouts, and complex formatting
+- **Supported files info** — Users are clearly informed about what Querify can and can't handle before uploading
 
-- **Decoupled architecture** — frontend and backend are fully separated; backend is independently testable via `/docs`
-- **Rate limiting** — all API endpoints are protected with per-IP request limits using `slowapi`
-- **Input validation** — chunk params, question length, and model selection are all validated server-side
-- **Prompt injection filtering** — regex-based filter blocks common injection attempts before they reach the LLM
-- **PDF magic bytes check** — verifies uploaded files are actually PDFs, not just renamed files
-- **Safe temp file handling** — no race condition on concurrent uploads, always cleaned up after processing
-- **Blank page filtering** — empty pages are stripped before indexing to reduce noise
-- **Embedding model caching** — `lru_cache` prevents reloading the SentenceTransformer on every request
-
-> v1 (pure Streamlit) is preserved in git history.
+> v2 (FastAPI + Streamlit refactor) and v1 (pure Streamlit) are preserved in git history.
 
 ---
 
 ## Features
 
-- **Low-Latency QA** — Offloads LLM inference to Groq for near-instant responses
+- **Multimodal Input** — Type or speak your questions; voice is transcribed via Groq Whisper
+- **Table-Aware Parsing** — PyMuPDF preserves table structure and layout during extraction
+- **Query Rewriting** — LLM-powered query reformulation before retrieval for better results
+- **Low-Latency QA** — LLM inference offloaded to Groq for near-instant responses
 - **Smart Chunking** — Recursive character splitting with configurable size and overlap
-- **Semantic Search** — Qdrant in-memory vector store for meaning-based retrieval, not just keyword matching
-- **Source Citations** — Every answer includes page numbers so you can verify the AI isn't hallucinating
+- **Semantic Search** — Qdrant in-memory vector store for meaning-based retrieval
+- **Source Citations** — Collapsible panel with page number and chunk snippet for every answer
+- **RAG Debug Panel** — Inspect rewritten queries and retrieved chunks per response
 - **Model Selection** — Switch between Llama 3.1 8B and Llama 3.3 70B per query
-- **Basic Security** — Rate limiting, input validation, and prompt injection filtering
+- **Security** — Rate limiting, input validation, prompt injection filtering, PDF magic bytes check
 
 ---
 
 ## Tech Stack
 
 **Frontend**
-- ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white) Streamlit — web UI & file upload
+- ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white) Streamlit — web UI, file upload, voice recorder
 
 **Backend**
 - ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white) FastAPI — REST API with automatic `/docs` swagger UI
-- ![Groq](https://img.shields.io/badge/Groq-F55036?style=flat&logoColor=white) Groq — LLM inference (Llama 3.1 8B, Llama 3.3 70B)
+- ![Groq](https://img.shields.io/badge/Groq-F55036?style=flat&logoColor=white) Groq — LLM inference (Llama 3.1 8B, Llama 3.3 70B) + Whisper STT
 - ![HuggingFace](https://img.shields.io/badge/HuggingFace-FFD21E?style=flat&logo=huggingface&logoColor=black) HuggingFace — embeddings (all-MiniLM-L6-v2)
 - ![Qdrant](https://img.shields.io/badge/Qdrant-DC244C?style=flat&logoColor=white) Qdrant — in-memory vector database
 - ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat&logo=langchain&logoColor=white) LangChain — RAG pipeline orchestration
-- ![PyPDF](https://img.shields.io/badge/PyPDF-3776AB?style=flat&logo=python&logoColor=white) PyPDF — PDF text extraction
+- ![PyMuPDF](https://img.shields.io/badge/PyMuPDF-3776AB?style=flat&logo=python&logoColor=white) PyMuPDF — PDF text & table extraction
 
 ---
 
 ## Prerequisites
 
-- Python 3.12 or higher
-- Groq API key (free tier available at [console.groq.com](https://console.groq.com))
+- Python 3.12
+- Groq API key (free tier at [console.groq.com](https://console.groq.com))
+- ffmpeg (required locally for voice recording — already available on Streamlit Cloud and Render)
+
+```bash
+# Windows
+winget install ffmpeg
+
+# macOS
+brew install ffmpeg
+```
 
 ---
 
@@ -86,6 +95,10 @@ source venv/bin/activate
 
 **3. Install dependencies**
 ```bash
+# Backend
+pip install -r backend/requirements.txt
+
+# Frontend
 pip install -r requirements.txt
 ```
 
@@ -102,10 +115,11 @@ GROQ_API_KEY=gsk_your_api_key_here  # Get yours free at console.groq.com
 
 **Start the backend first:**
 ```bash
-python -m uvicorn backend.main:app --reload
+cd backend
+uvicorn main:app --reload
 ```
 
-**Then start the frontend in a separate terminal:**
+**Then start the frontend in a separate terminal (from root):**
 ```bash
 streamlit run app.py
 ```
@@ -113,29 +127,33 @@ streamlit run app.py
 The FastAPI backend runs on `http://localhost:8000` — visit `/docs` for the interactive API explorer.
 
 **Workflow:**
-1. Upload a PDF document via the file uploader
-2. Click "Process" to chunk and index the document
-3. Enter your question in natural language
-4. Receive an AI-generated answer with source page citations
+1. Upload a PDF via the file uploader and click **Process**
+2. Type your question or click **🎤 Record** to ask by voice
+3. Click **Get Answer** to get an AI-generated response
+4. Expand **📎 Sources** to see which pages the answer came from
+5. Enable the **RAG debug panel** in the sidebar to inspect retrieval internals
 
 ---
 
 ## Example Queries
-- "Summarize the main findings of this research paper"
-- "What technical skills are listed in this resume?"
-- "List all the key recommendations from this report"
-- "Explain the methodology used in section 3"
+
+- *"Summarize the main findings of this report"*
+- *"What were the cash and cash equivalents in 2009?"*
+- *"What technical skills are listed in this resume?"*
+- *"List all key recommendations from section 3"*
 
 ---
 
 ## Configuration
 
-Adjustable parameters in the sidebar:
+Adjustable in the sidebar:
 
-- **Model Selection** — Llama 3.1 8B (fastest) or Llama 3.3 70B (smarter)
-- **Chunk Size** — 500–2000 characters (default: 1000)
-- **Chunk Overlap** — 50–500 characters (default: 200)
-- **Top-K Retrieval** — 1–6 document chunks per query (default: 3)
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| Model | 8B / 70B | 8B | Speed vs quality tradeoff |
+| Chunk Size | 500–2000 | 1000 | Characters per chunk |
+| Chunk Overlap | 50–500 | 200 | Overlap between chunks |
+| Top-K | 1–6 | 3 | Chunks retrieved per query |
 
 ---
 
@@ -145,9 +163,9 @@ Adjustable parameters in the sidebar:
 rag-document-qa-system/
 ├── backend/
 │   ├── main.py            # FastAPI routes, rate limiting, input validation
-│   ├── rag_service.py     # Core RAG pipeline — embeddings, vector store, LLM
-│   ├── requirements.txt   # Backend dependencies
-│   └── .python-version    # Pins Python 3.12 for Render
+│   ├── rag_service.py     # RAG pipeline — embeddings, query rewriting, vector store, LLM
+│   ├── stt_service.py     # Speech-to-text via Groq Whisper API
+│   └── requirements.txt   # Backend dependencies
 ├── app.py                 # Streamlit frontend
 ├── requirements.txt       # Frontend dependencies
 ├── .env                   # Environment variables (not tracked)
@@ -160,7 +178,7 @@ rag-document-qa-system/
 ## Architecture
 
 ```
-User
+User (text or voice)
  │
  ▼
 Streamlit Frontend (app.py)
@@ -171,40 +189,56 @@ FastAPI Backend (main.py)
  ├── Input validation
  ├── Prompt injection filter
  │
- ▼
-RAG Service (rag_service.py)
- ├── PyPDF — extract text from PDF
- ├── RecursiveCharacterTextSplitter — chunk documents
- ├── SentenceTransformer — embed chunks (all-MiniLM-L6-v2)
- ├── Qdrant (in-memory) — store and search vectors
- └── Groq LLM — generate answer from retrieved context
+ ├── /transcribe ──► Groq Whisper API (STT)
+ │
+ └── /query ──► RAG Service (rag_service.py)
+                 ├── Query rewriting (Groq LLM)
+                 ├── PyMuPDF — extract text & tables
+                 ├── RecursiveCharacterTextSplitter — chunk
+                 ├── SentenceTransformer — embed (all-MiniLM-L6-v2)
+                 ├── Qdrant (in-memory) — vector search
+                 └── Groq LLM — generate answer + citations
 ```
 
 ---
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/health` | Check API status and Groq key validity |
-| `POST` | `/upload` | Upload and process a PDF (rate limited: 10/min) |
-| `POST` | `/query` | Ask a question against the indexed document (rate limited: 20/min) |
-| `POST` | `/reset` | Clear the current session and vector store (rate limited: 10/min) |
+| Method | Endpoint | Description | Rate Limit |
+|--------|----------|-------------|------------|
+| `GET` | `/health` | Check API and Groq key status | — |
+| `POST` | `/upload` | Upload and process a PDF | 10/min |
+| `POST` | `/query` | Ask a question against the document | 20/min |
+| `POST` | `/transcribe` | Transcribe audio to text via Groq Whisper | 10/min |
+| `POST` | `/reset` | Clear session and vector store | 10/min |
 
 Visit `/docs` on the backend URL for the full interactive API explorer.
 
 ---
 
+## Supported Files
+
+| Type | Supported |
+|------|-----------|
+| Text-based PDFs | ✅ |
+| PDFs with tables | ✅ |
+| Scanned PDFs | ❌ (no OCR) |
+| Images / charts | ❌ |
+| Handwritten text | ❌ |
+
+---
+
 ## Security
 
-- API keys are never committed to version control
+- API keys never committed to version control
 - Rate limiting on all endpoints (10–20 req/min per IP)
 - Server-side input validation on all parameters
 - Regex-based prompt injection filtering
 - PDF magic bytes verification
-- All processing is in-memory with no persistent storage
+- Safe temp file handling — no race conditions, always cleaned up
+- CORS locked to Streamlit Cloud URL + localhost
 
-> **Note:** This is a single-user system — the backend maintains one shared session. Multi-user session management and LLM Guard integration are planned for a future release.
+> **Note:** Single-user system — the backend maintains one shared RAG session. Multi-user session management is on the roadmap.
 
 ---
 
@@ -227,16 +261,17 @@ GitHub: [@sanjay-s22](https://github.com/sanjay-s22)
 ## Acknowledgments
 
 Built with:
-- [LangChain](https://langchain.com) — RAG orchestration framework
-- [Groq](https://groq.com) — High-performance LLM inference
-- [FastAPI](https://fastapi.tiangolo.com) — Modern Python web framework
-- [Qdrant](https://qdrant.tech) — Vector similarity search engine
-- [Streamlit](https://streamlit.io) — Interactive web application framework
+- [LangChain](https://langchain.com) — RAG orchestration
+- [Groq](https://groq.com) — LLM inference + Whisper STT
+- [FastAPI](https://fastapi.tiangolo.com) — Backend framework
+- [Qdrant](https://qdrant.tech) — Vector similarity search
+- [Streamlit](https://streamlit.io) — Frontend framework
+- [PyMuPDF](https://pymupdf.readthedocs.io) — PDF extraction
 - [HuggingFace](https://huggingface.co) — Embedding models
 
 ---
 
-> Requires a free Groq API key for LLM inference. The free tier offers generous rate limits suitable for personal use and prototyping.
+> Requires a free Groq API key. The free tier is generous enough for personal use, demos, and prototyping.
 
 ---
 
