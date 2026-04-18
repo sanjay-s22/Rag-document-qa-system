@@ -10,7 +10,7 @@ import os
 from rag_service import RAGService, check_groq
 from stt_service import transcribe_audio  # Handles audio → text transcription via faster-whisper
 
-# Rate Limiter Setup
+# Rate limiter keyed by IP address — prevents abuse on free-tier infra
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Querify API")
 app.state.limiter = limiter
@@ -18,19 +18,22 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8501",
-                   "https://rag-document-app-system-kc9htnpnjbzbexjdk4ws98.streamlit.app"],
+    allow_origins=[
+        "http://localhost:8501",
+        "https://rag-document-app-system-kc9htnpnjbzbexjdk4ws98.streamlit.app"
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 rag = RAGService()
 
-MAX_SIZE        = 15 * 1024 * 1024  # 15MB
+MAX_SIZE        = 15 * 1024 * 1024  # 15MB PDF cap
 MAX_Q_LENGTH    = 500               # Max question characters
 MAX_CHUNK_SIZE  = 2000              # Match slider max
 MIN_CHUNK_SIZE  = 500               # Match slider min
 MAX_AUDIO_SIZE  = 10 * 1024 * 1024  # 10MB audio cap — keeps transcription snappy on free tier
+USER_ID_LENGTH  = 36                # UUID4 string length
 
 # Allowed audio MIME types — covers browser recordings (webm) and common uploads
 ALLOWED_AUDIO_TYPES = {
@@ -39,6 +42,13 @@ ALLOWED_AUDIO_TYPES = {
     "audio/webm", "audio/ogg",
     "audio/mp4", "audio/m4a",
 }
+
+
+def validate_user_id(user_id: str):
+    # Rejects anything that isn't a lowercase UUID4 — guards against path traversal and junk input
+    import re
+    if not user_id or not re.match(r'^[a-f0-9\-]{36}$', user_id):
+        raise HTTPException(400, "Invalid user_id. Must be a valid UUID.")
 
 
 @app.get("/health")
@@ -54,9 +64,12 @@ async def health():
 async def upload(
     request: Request,
     file: UploadFile = File(...),
-    chunk_size: int = 1000,
-    chunk_overlap: int = 200
+    user_id: str = Query(...),
+    chunk_size: int = Query(default=1000),
+    chunk_overlap: int = Query(default=200),
 ):
+    validate_user_id(user_id)
+
     # Validate content type
     if file.content_type != "application/pdf":
         raise HTTPException(400, "Only PDF files allowed.")
@@ -84,7 +97,7 @@ async def upload(
         tmp_path = tmp.name
 
     try:
-        result = rag.process_pdf(tmp_path, chunk_size, chunk_overlap)
+        result = rag.process_pdf(tmp_path, chunk_size, chunk_overlap, user_id=user_id)
     finally:
         os.unlink(tmp_path)  # Always clean up even if processing fails
 
@@ -99,9 +112,12 @@ async def upload(
 async def query(
     request: Request,
     question: str = Query(...),
+    user_id: str = Query(...),
     k: int = Query(default=3),
-    model: str = Query(default=None)
+    model: str = Query(default=None),
 ):
+    validate_user_id(user_id)
+
     # Input length validation
     if not question.strip():
         raise HTTPException(400, "Question cannot be empty.")
@@ -117,7 +133,7 @@ async def query(
     if model and model not in allowed_models:
         raise HTTPException(400, f"Invalid model. Choose from: {allowed_models}")
 
-    result = rag.query(question, k, model_name=model)
+    result = rag.query(question, k, user_id=user_id, model_name=model)
 
     if not result["success"]:
         raise HTTPException(422, result["message"])
@@ -125,11 +141,23 @@ async def query(
     return result
 
 
+@app.get("/history")
+@limiter.limit("30/minute")
+async def get_history(
+    request: Request,
+    user_id: str = Query(...),
+):
+    validate_user_id(user_id)
+    # Returns all Q&A entries for this user from in-memory history, oldest → newest
+    entries = rag.get_history(user_id)
+    return {"success": True, "history": entries}
+
+
 @app.post("/transcribe")
 @limiter.limit("10/minute")
 async def transcribe(
     request: Request,
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
 ):
     # Reject unsupported audio formats upfront
     if file.content_type not in ALLOWED_AUDIO_TYPES:
@@ -139,7 +167,6 @@ async def transcribe(
 
     if len(data) > MAX_AUDIO_SIZE:
         raise HTTPException(400, "Audio file too large (max 10MB).")
-
     if len(data) == 0:
         raise HTTPException(400, "Audio file is empty.")
 
@@ -151,7 +178,6 @@ async def transcribe(
         "audio/mp4": "m4a", "audio/m4a": "m4a",
     }
     ext = ext_map.get(file.content_type, "wav")
-
     result = transcribe_audio(data, file_extension=ext)
 
     if not result["success"]:
@@ -159,8 +185,21 @@ async def transcribe(
 
     return result
 
+
 @app.post("/reset")
 @limiter.limit("10/minute")
-async def reset(request: Request):
-    rag.clear()
+async def reset(
+    request: Request,
+    user_id: str = Query(...),
+):
+    validate_user_id(user_id)
+    # Wipes the user's Qdrant collection and in-memory history for a clean slate
+    rag.clear(user_id=user_id)
     return {"success": True, "message": "Session reset."}
+
+
+@app.get("/status")
+async def status(user_id: str = Query(...)):
+    # Lightweight check — lets the frontend know if a document is already indexed for this user
+    validate_user_id(user_id)
+    return {"has_document": rag.has_document(user_id)}
