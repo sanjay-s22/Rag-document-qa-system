@@ -26,7 +26,7 @@ app.add_middleware(
 
 rag = RAGService()
 
-MAX_SIZE        = 15 * 1024 * 1024  # 15MB
+MAX_SIZE        = 5 * 1024 * 1024   # 5MB
 MAX_Q_LENGTH    = 500               # Max question characters
 MAX_CHUNK_SIZE  = 2000              # Match slider max
 MIN_CHUNK_SIZE  = 500               # Match slider min
@@ -72,7 +72,7 @@ async def upload(
     data = await file.read()
 
     if len(data) > MAX_SIZE:
-        raise HTTPException(400, "File too large (max 15MB).")
+        raise HTTPException(400, "File too large (max 5MB).")
 
     # Validate it's actually a PDF by checking magic bytes
     if not data.startswith(b"%PDF"):
