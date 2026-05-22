@@ -11,6 +11,7 @@ sentence-transformers==2.7.0
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.3.1
 pymupdf
+pypdf
 python-dotenv
 slowapi==0.1.9
 
