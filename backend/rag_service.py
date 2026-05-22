@@ -291,19 +291,14 @@ class RAGService:
         self._history[user_id].append(entry)
 
     def get_history(self, user_id: str) -> list:
-        # Drop expired entries lazily before returning — no background thread needed
         now_iso = datetime.now(timezone.utc).isoformat()
         entries = self._history.get(user_id, [])
         valid = [e for e in entries if e.get("expires_at", "9999") > now_iso]
-        # Update in place so expired entries are actually removed from memory
         self._history[user_id] = valid
-        # Already in insertion order (oldest → newest) — no sort needed
         return valid
 
     def clear(self, user_id: str):
-        # Delete only this user's vectors from the shared collection — other users unaffected
         self._delete_user_points(user_id)
-        # Also wipe this user's in-memory history
         self._history.pop(user_id, None)
 
     def has_document(self, user_id: str) -> bool:

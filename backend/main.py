@@ -9,6 +9,7 @@ import tempfile
 import os
 from rag_service import RAGService, check_groq
 from stt_service import transcribe_audio  # Handles audio → text transcription via faster-whisper
+from pypdf import PdfReader 
 
 # Rate limiter keyed by IP address — prevents abuse on free-tier infra
 limiter = Limiter(key_func=get_remote_address)
@@ -33,7 +34,8 @@ MAX_Q_LENGTH    = 500               # Max question characters
 MAX_CHUNK_SIZE  = 2000              # Match slider max
 MIN_CHUNK_SIZE  = 500               # Match slider min
 MAX_AUDIO_SIZE  = 10 * 1024 * 1024  # 10MB audio cap — keeps transcription snappy on free tier
-USER_ID_LENGTH  = 36                # UUID4 string length
+USER_ID_LENGTH  = 36                
+MAX_PAGES = 12 
 
 # Allowed audio MIME types — covers browser recordings (webm) and common uploads
 ALLOWED_AUDIO_TYPES = {
@@ -97,9 +99,28 @@ async def upload(
         tmp_path = tmp.name
 
     try:
-        result = rag.process_pdf(tmp_path, chunk_size, chunk_overlap, user_id=user_id)
+    # Validate page count
+        pdf_reader = PdfReader(tmp_path)
+        page_count = len(pdf_reader.pages)
+
+        if page_count > MAX_PAGES:
+             raise HTTPException(
+             400,
+             f"PDF exceeds page limit ({MAX_PAGES} pages max). "
+             f"Your PDF has {page_count} pages."
+            )
+
+        result = rag.process_pdf(
+          tmp_path,
+          chunk_size,
+          chunk_overlap,
+          user_id=user_id
+        )
+
     finally:
         os.unlink(tmp_path)  # Always clean up even if processing fails
+
+   
 
     if not result["success"]:
         raise HTTPException(422, result["message"])
@@ -200,6 +221,5 @@ async def reset(
 
 @app.get("/status")
 async def status(user_id: str = Query(...)):
-    # Lightweight check — lets the frontend know if a document is already indexed for this user
     validate_user_id(user_id)
     return {"has_document": rag.has_document(user_id)}
