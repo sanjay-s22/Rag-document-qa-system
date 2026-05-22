@@ -9,7 +9,7 @@ AI-powered PDF document analyzer using Retrieval-Augmented Generation (RAG) with
 [![Groq](https://img.shields.io/badge/Groq-F55036?style=for-the-badge&logoColor=white)](https://groq.com)
 
 **Live App:** https://rag-document-app-system-kc9htnpnjbzbexjdk4ws98.streamlit.app/  
-**API (Backend):** https://rag-document-qa-system-0raw.onrender.com
+**API (Backend):** https://rag-document-qa-system-1-6xi0.onrender.com
 
 > **Note:** Both services are on free tiers and spin down after inactivity. The first request may take 1–3 minutes while the backend wakes up. Subsequent requests are fast.
 
