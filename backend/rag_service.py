@@ -105,7 +105,7 @@ class RAGService:
     def __init__(self):
         self.embeddings = SentenceTransformerEmbeddings()
         # Initialize the Groq LLM — API key is pulled from the environment
-        self.llm = ChatGroq(model_name="llama-3.1-8b-instant", api_key=os.getenv("GROQ_API_KEY"), temperature=0.4)
+        self.llm = ChatGroq(model_name="llama-3.1-8b-instant", api_key=os.getenv("GROQ_API_KEY"), temperature=0.3)
         self.client = _get_qdrant_client()
 
         # In-memory chat history: { user_id: [ { question, answer, ... }, ... ] }
@@ -218,7 +218,7 @@ class RAGService:
 
         # Swap the LLM model if a different one was requested from the frontend
         if model_name and model_name != self.llm.model_name:
-            self.llm = ChatGroq(model_name=model_name, api_key=os.getenv("GROQ_API_KEY"), temperature=0.4)
+            self.llm = ChatGroq(model_name=model_name, api_key=os.getenv("GROQ_API_KEY"), temperature=0.3)
 
         # Rewrite the query before retrieval to improve chunk matching
         rewritten_question = self.rewrite_query(question)
