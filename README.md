@@ -37,7 +37,7 @@ Chat with your PDFs. Upload a document, ask questions in plain English (or out l
 - **Multi-user** — Each session gets its own isolated space in Qdrant via `user_id` payload filtering. Uploads, queries, and resets are fully scoped per user
 - **Persistent vectors** — Moved from in-memory Qdrant to Qdrant Cloud, so uploaded documents survive backend restarts
 - **Single shared collection** — All users share one Qdrant collection (`querify_docs`) to stay under the free tier's 5-collection cap. Isolation is handled by filtering on `user_id` at query/delete time, backed by a keyword index
-- **Chat history** — Q&A turns are kept in-memory per user with a 7-day TTL. No dedicated storage yet, so history is gone if the backend goes to sleep. Your session URL encodes your session ID — bookmark it to pick up where you left off when the backend wakes back up
+- **Chat history** — Q&A turns are kept in-memory per user with a 7-day TTL. No dedicated storage yet, so history is gone if the backend restarts or the free-tier instance sleeps. Your session URL encodes your session ID — bookmark it to pick up where you left off when the backend wakes back up
 
 > **v3** — voice input, query rewriting, page citations, RAG debug panel, PyMuPDF. **v2** — FastAPI + Streamlit split. **v1** — pure Streamlit. All in git history.
 
@@ -103,7 +103,7 @@ QDRANT_URL=https://your-cluster.qdrant.io
 QDRANT_API_KEY=your_qdrant_key
 ```
 
-> No Qdrant env vars? The backend falls back to in-memory mode (vectors lost on restart).
+> If Qdrant credentials are not configured, the backend falls back to in-memory mode (vector data will not persist across restarts).
 
 **Run**
 
@@ -150,6 +150,10 @@ rag-document-qa-system/
 │   ├── rag_service.py     # RAG pipeline — chunking, embeddings, retrieval, LLM, history
 │   ├── stt_service.py     # Speech-to-text via Groq Whisper API
 │   └── requirements.txt
+├── docs/
+│   ├── querify-home.png
+│   ├── querify-query.png
+│   └── querify-table-output.png
 ├── app.py                 # Streamlit frontend
 ├── requirements.txt
 ├── .env                   # Not tracked
@@ -251,7 +255,7 @@ Uploading a new PDF deletes the user's existing vectors first, then re-indexes t
 ## Roadmap
 
 - Proper auth (JWT or OAuth) tied to `user_id`
-- Persistent chat history (currently in-memory — lost when the free tier backend sleeps)
+- - Persistent chat history via Redis or database-backed session storage (currently stored in-memory only)
 - Streaming responses
 - LLM Guard for stronger prompt safety
 
