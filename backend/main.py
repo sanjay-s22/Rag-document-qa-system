@@ -9,7 +9,7 @@ import tempfile
 import os
 from rag_service import RAGService, check_groq
 from stt_service import transcribe_audio  # Handles audio → text transcription via faster-whisper
-from pypdf import PdfReader 
+import fitz
 
 # Rate limiter keyed by IP address — prevents abuse on free-tier infra
 limiter = Limiter(key_func=get_remote_address)
@@ -100,8 +100,9 @@ async def upload(
 
     try:
     # Validate page count
-        pdf_reader = PdfReader(tmp_path)
-        page_count = len(pdf_reader.pages)
+        doc = fitz.open(tmp_path)
+        page_count = doc.page_count
+        doc.close()
 
         if page_count > MAX_PAGES:
              raise HTTPException(
