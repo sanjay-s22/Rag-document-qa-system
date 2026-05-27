@@ -255,7 +255,7 @@ Uploading a new PDF deletes the user's existing vectors first, then re-indexes t
 ## Roadmap
 
 - Proper auth (JWT or OAuth) tied to `user_id`
-- - Persistent chat history via Redis or database-backed session storage (currently stored in-memory only)
+- Persistent chat history via Redis or database-backed session storage (currently stored in-memory only)
 - Streaming responses
 - LLM Guard for stronger prompt safety
 
