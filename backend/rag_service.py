@@ -105,7 +105,7 @@ class RAGService:
     def __init__(self):
         self.embeddings = SentenceTransformerEmbeddings()
         # Initialize the Groq LLM — API key is pulled from the environment
-        self.llm = ChatGroq(model_name="llama-3.1-8b-instant", api_key=os.getenv("GROQ_API_KEY"), temperature=0.3)
+        self.llm = ChatGroq(model_name="openai/gpt-oss-20b", api_key=os.getenv("GROQ_API_KEY"), temperature=0.3)
         self.client = _get_qdrant_client()
 
         # In-memory chat history: { user_id: [ { question, answer, ... }, ... ] }
@@ -229,7 +229,7 @@ class RAGService:
             collection_name=SHARED_COLLECTION,
             query_vector=query_vec,
             limit=k,
-            query_filter=_user_filter(user_id),  # critical — keeps users isolated
+            query_filter=_user_filter(user_id),  # keeps users isolated
         )
 
         if not results:
@@ -241,13 +241,11 @@ class RAGService:
         if not context:
             return {"success": False, "message": "Retrieved content was empty."}
 
-        # Build the prompt and pipe it through the LLM using LangChain's chain syntax
         prompt = PromptTemplate(template=PROMPT_TEMPLATE, input_variables=["context", "question"])
         chain = prompt | self.llm
         response = chain.invoke({"context": context, "question": rewritten_question})
 
-        # Build structured citations — each entry carries the page number and a snippet of the chunk text.
-        # The frontend uses this to render a collapsible citations panel.
+        # Build structured citations
         citations = []
         seen_pages = set()
         for r in results:

@@ -8,10 +8,10 @@ from slowapi.errors import RateLimitExceeded
 import tempfile
 import os
 from rag_service import RAGService, check_groq
-from stt_service import transcribe_audio  # Handles audio → text transcription via faster-whisper
+from stt_service import transcribe_audio 
 import fitz
 
-# Rate limiter keyed by IP address — prevents abuse on free-tier infra
+# Rate limiter keyed by IP address 
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Querify API")
 app.state.limiter = limiter
@@ -29,11 +29,11 @@ app.add_middleware(
 
 rag = RAGService()
 
-MAX_SIZE        = 5 * 1024 * 1024   # 5MB
+MAX_SIZE        = 5 * 1024 * 1024   
 MAX_Q_LENGTH    = 500               # Max question characters
-MAX_CHUNK_SIZE  = 2000              # Match slider max
-MIN_CHUNK_SIZE  = 500               # Match slider min
-MAX_AUDIO_SIZE  = 10 * 1024 * 1024  # 10MB audio cap — keeps transcription snappy on free tier
+MAX_CHUNK_SIZE  = 2000              # Slider max
+MIN_CHUNK_SIZE  = 500               # Slider min
+MAX_AUDIO_SIZE  = 10 * 1024 * 1024  
 USER_ID_LENGTH  = 36                
 MAX_PAGES = 12 
 
@@ -72,7 +72,7 @@ async def upload(
 ):
     validate_user_id(user_id)
 
-    # Validate content type
+    # Validate file type
     if file.content_type != "application/pdf":
         raise HTTPException(400, "Only PDF files allowed.")
 
@@ -151,7 +151,7 @@ async def query(
         raise HTTPException(400, "k must be between 1 and 6.")
 
     # Validate model if provided
-    allowed_models = {"llama-3.1-8b-instant", "llama-3.3-70b-versatile"}
+    allowed_models = {"openai/gpt-oss-20b", "openai/gpt-oss-120b "}
     if model and model not in allowed_models:
         raise HTTPException(400, f"Invalid model. Choose from: {allowed_models}")
 

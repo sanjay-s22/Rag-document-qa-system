@@ -92,8 +92,8 @@ with st.sidebar:
 
     model_name = st.selectbox(
         "Choose model",
-        ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"],
-        help="8B = fastest, 70B = smarter and more detailed"
+        ["openai/gpt-oss-20b", "openai/gpt-oss-120b"],
+        help="20B = faster responses with lower cost, 120B = higher quality responses for complex tasks"
     )
     st.subheader("Chunking")
     chunk_size = st.slider("Chunk size", 500, 2000, 1000, 100)
